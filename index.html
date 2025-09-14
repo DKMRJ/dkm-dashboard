@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard DKM Raudhatul Jannah</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-100">
+
+  <div class="flex min-h-screen">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-green-800 text-white p-4">
+      <h1 class="font-bold text-lg mb-4">DKM RJ</h1>
+      <button onclick="showView('public')" class="block w-full mb-2 bg-green-700 py-2 rounded">Tampilan Umum</button>
+      <button onclick="requireLogin('submission')" class="block w-full mb-2 bg-green-700 py-2 rounded">Submisi</button>
+      <button onclick="requireLogin('approval')" class="block w-full bg-green-700 py-2 rounded">Approval</button>
+    </aside>
+
+    <!-- Main -->
+    <main class="flex-1 p-6 space-y-6">
+      <section id="public" class="hidden">
+        <h2 class="text-xl font-bold mb-4">📊 Laporan Kas</h2>
+        <p>Saldo Kas: <span id="saldoKas">Rp 0</span></p>
+        <h3 class="mt-4 font-semibold">Pemasukan</h3>
+        <ul id="listPemasukan"></ul>
+        <h3 class="mt-4 font-semibold">Pengeluaran</h3>
+        <ul id="listPengeluaran"></ul>
+        <h3 class="mt-4 font-semibold">Kegiatan</h3>
+        <ul id="listKegiatan"></ul>
+      </section>
+
+      <section id="submission" class="hidden">
+        <h2 class="text-xl font-bold mb-4">✍️ Submisi Anggota</h2>
+        <!-- Form tambah pemasukan -->
+        <form onsubmit="addPemasukan(event)" class="space-y-2 bg-white p-4 rounded shadow">
+          <input type="text" id="sumber" placeholder="Sumber" class="border p-2 w-full">
+          <input type="number" id="jumlahIn" placeholder="Jumlah" class="border p-2 w-full">
+          <input type="date" id="tanggalIn" class="border p-2 w-full">
+          <button class="bg-green-700 text-white px-4 py-2 rounded">Tambah Pemasukan</button>
+        </form>
+      </section>
+
+      <section id="approval" class="hidden">
+        <h2 class="text-xl font-bold mb-4">✅ Approval Ketua/Wakil</h2>
+        <h3 class="font-semibold">Submisi Kegiatan</h3>
+        <ul id="approvalKegiatan"></ul>
+        <h3 class="font-semibold mt-4">Submisi Pengeluaran</h3>
+        <ul id="approvalPengeluaran"></ul>
+      </section>
+    </main>
+  </div>
+
+<script>
+  const supabaseUrl = "https://YOUR_PROJECT_ID.supabase.co";
+  const supabaseKey = "YOUR_ANON_KEY";
+  const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+  let currentUser = null;
+
+  async function fetchPublicData() {
+    const { data: pemasukan } = await supabase.from("pemasukan").select("*").eq("status","approved");
+    const { data: pengeluaran } = await supabase.from("pengeluaran").select("*").eq("status","approved");
+    const { data: kegiatan } = await supabase.from("kegiatan").select("*").eq("status","approved");
+
+    document.getElementById("listPemasukan").innerHTML = pemasukan.map(p => `<li>+ Rp${p.jumlah} - ${p.sumber} (${p.tanggal})</li>`).join("");
+    document.getElementById("listPengeluaran").innerHTML = pengeluaran.map(p => `<li>- Rp${p.jumlah} - ${p.keperluan} (${p.tanggal})</li>`).join("");
+    document.getElementById("listKegiatan").innerHTML = kegiatan.map(k => `<li>${k.nama} (${k.tanggal})</li>`).join("");
+
+    const totalIn = pemasukan.reduce((a,b) => a + b.jumlah, 0);
+    const totalOut = pengeluaran.reduce((a,b) => a + b.jumlah, 0);
+    document.getElementById("saldoKas").innerText = "Rp " + (totalIn - totalOut).toLocaleString();
+  }
+
+  function showView(view) {
+    document.querySelectorAll("main section").forEach(s => s.classList.add("hidden"));
+    document.getElementById(view).classList.remove("hidden");
+    if (view === "public") fetchPublicData();
+  }
+
+  function requireLogin(view) {
+    if (!currentUser) {
+      const email = prompt("Email:");
+      const password = prompt("Password:");
+      supabase.auth.signInWithPassword({ email, password }).then(({data,error})=>{
+        if(error) return alert("Login gagal!");
+        currentUser = data.user;
+        showView(view);
+      });
+    } else {
+      showView(view);
+    }
+  }
+
+  async function addPemasukan(e) {
+    e.preventDefault();
+    const sumber = document.getElementById("sumber").value;
+    const jumlah = parseInt(document.getElementById("jumlahIn").value);
+    const tanggal = document.getElementById("tanggalIn").value;
+
+    await supabase.from("pemasukan").insert([{ sumber, jumlah, tanggal, created_by: currentUser.id, status:"approved" }]);
+    alert("Pemasukan ditambahkan!");
+    e.target.reset();
+  }
+
+  // Default view
+  showView("public");
+</script>
+</body>
+</html>
