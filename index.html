@@ -51,21 +51,23 @@
     </main>
   </div>
 
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-  const supabaseUrl = "https://YOUR_PROJECT_ID.supabase.co";
-  const supabaseKey = "YOUR_ANON_KEY";
+  const supabaseUrl = "https://gajsedhsxcllkojdongs.supabase.co";
+  const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdhanNlZGhzeGNsbGtvamRvbmdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc4MjQ0NzEsImV4cCI6MjA3MzQwMDQ3MX0.18Mf5wr-NImdJnIKQ34zjrKYJN8If8swf-1KLNDfo48";
   const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
   let currentUser = null;
 
   async function fetchPublicData() {
-    const { data: pemasukan } = await supabase.from("pemasukan").select("*").eq("status","approved");
-    const { data: pengeluaran } = await supabase.from("pengeluaran").select("*").eq("status","approved");
-    const { data: kegiatan } = await supabase.from("kegiatan").select("*").eq("status","approved");
+    const { data: kas } = await supabase.from("kas").select("*").eq("status","disetujui");
+
+    const pemasukan = kas.filter(k => k.tipe === "pemasukan");
+    const pengeluaran = kas.filter(k => k.tipe === "pengeluaran");
 
     document.getElementById("listPemasukan").innerHTML = pemasukan.map(p => `<li>+ Rp${p.jumlah} - ${p.sumber} (${p.tanggal})</li>`).join("");
     document.getElementById("listPengeluaran").innerHTML = pengeluaran.map(p => `<li>- Rp${p.jumlah} - ${p.keperluan} (${p.tanggal})</li>`).join("");
-    document.getElementById("listKegiatan").innerHTML = kegiatan.map(k => `<li>${k.nama} (${k.tanggal})</li>`).join("");
 
     const totalIn = pemasukan.reduce((a,b) => a + b.jumlah, 0);
     const totalOut = pengeluaran.reduce((a,b) => a + b.jumlah, 0);
@@ -98,26 +100,24 @@
     const jumlah = parseInt(document.getElementById("jumlahIn").value);
     const tanggal = document.getElementById("tanggalIn").value;
 
-    await supabase.from("pemasukan").insert([{ sumber, jumlah, tanggal, created_by: currentUser.id, status:"approved" }]);
-    alert("Pemasukan ditambahkan!");
+    await supabase.from("kas").insert([{ 
+      tipe: "pemasukan",
+      sumber, 
+      jumlah, 
+      tanggal, 
+      created_by: currentUser.id, 
+      status:"pending" 
+    }]);
+
+    alert("Pemasukan diajukan, menunggu persetujuan!");
     e.target.reset();
   }
 
   // Default view
   showView("public");
 </script>
-  <script type="module">
-  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-  const supabase = createClient(
-    import.meta.env.VITE_SUPABASE_URL,
-    import.meta.env.VITE_SUPABASE_ANON_KEY
-  )
-
-  // Contoh cek login user
-  const { data: { user } } = await supabase.auth.getUser()
-  console.log("User login:", user)
-</script>
 </body>
 </html>
+
 
